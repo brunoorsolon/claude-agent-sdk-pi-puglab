@@ -1,4 +1,7 @@
-# claude-agent-sdk-pi
+> [!WARNING]
+> **Unofficial maintained fork.** The original project is [prateekmedia/claude-agent-sdk-pi](https://github.com/prateekmedia/claude-agent-sdk-pi), by Prateek Sunal. This fork is maintained at [brunoorsolon/claude-agent-sdk-pi-puglab](https://github.com/brunoorsolon/claude-agent-sdk-pi-puglab) and uses the separate npm name `@puglab/claude-agent-sdk-pi`. It is not endorsed by the original maintainer or Anthropic. [Fork changes, validation, and release instructions](FORK.md).
+
+# @puglab/claude-agent-sdk-pi
 
 This extension registers a custom provider that routes LLM calls through the **Claude Agent SDK** while **pi executes tools** and renders tool results in the TUI.
 
@@ -19,15 +22,15 @@ This extension registers a custom provider that routes LLM calls through the **C
 1) Install the extension globally (npm is the preferred source now):
 
 ```
-pi install npm:claude-agent-sdk-pi
+pi install npm:@puglab/claude-agent-sdk-pi@1.0.22
 ```
 
-(You can pin a specific version for reproducible installs.)
+This is the prepared fork version; it is not available until the maintainer publishes it. Keep the exact version in consumer configuration and preserve the consumer lockfile where applicable.
 
 **Alternative (git):**
 
 ```
-pi install git:github.com/prateekmedia/claude-agent-sdk-pi
+pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@fork-v1.0.22
 ```
 
 See **pi-coding-agent** install docs for other install sources and paths.
