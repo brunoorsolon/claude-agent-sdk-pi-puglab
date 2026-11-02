@@ -25,7 +25,7 @@ This extension registers a custom provider that routes LLM calls through the **C
 pi install npm:@puglab/claude-agent-sdk-pi@1.0.22
 ```
 
-This is the prepared fork version; it is not available until the maintainer publishes it. Keep the exact version in consumer configuration and preserve the consumer lockfile where applicable.
+Keep the exact version in consumer configuration and preserve the consumer lockfile where applicable.
 
 **Alternative (git):**
 
