@@ -4,7 +4,8 @@ on:
   pull_request:
   push:
     branches: [master]
-    tags: ['fork-v*']
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -31,10 +32,9 @@ jobs:
           PI_TEST_AGENT_ENTRY: file://${{ runner.temp }}/pi/node_modules/@earendil-works/pi-coding-agent/dist/index.js
 
   publish:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/fork-v') && github.repository == 'brunoorsolon/claude-agent-sdk-pi-puglab'
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'fork-v') && github.repository == 'brunoorsolon/claude-agent-sdk-pi-puglab'
     needs: test
     runs-on: ubuntu-latest
-    environment: npm
     permissions:
       contents: read
       id-token: write
@@ -58,6 +58,6 @@ jobs:
           assert.equal(process.env.RELEASE_TAG, `fork-v${pkg.version}`);
           NODE
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm publish --access public --provenance
