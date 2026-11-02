@@ -1,6 +1,6 @@
 {
   "name": "@puglab/claude-agent-sdk-pi",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "Unofficial maintained fork of claude-agent-sdk-pi; Claude Agent SDK requests with Pi tool execution",
   "license": "MIT",
   "repository": {
