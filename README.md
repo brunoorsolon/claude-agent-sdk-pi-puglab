@@ -30,7 +30,7 @@ Keep the exact version in consumer configuration and preserve the consumer lockf
 **Alternative (git):**
 
 ```
-pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@fork-v1.0.22
+pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@v1.0.22
 ```
 
 See **pi-coding-agent** install docs for other install sources and paths.

@@ -13,7 +13,7 @@ The original MIT license and `Copyright (c) 2026 Prateek Sunal` are preserved un
 | Branch | Purpose |
 | --- | --- |
 | `fix/pi-context-tool-contracts` | Upstream-ready repairs, regressions, peer compatibility metadata, and functional README documentation. Keeps the original npm name. No fork banner, scoped package name, release automation, or this document. |
-| `fork/npm-distribution` | The clean repair plus the unofficial-fork banner, scoped package metadata, this document, and `.github/workflows/publish.yml`. Intended for this fork's `master`, not upstream. |
+| `fork/npm-distribution` | The clean repair plus the unofficial-fork banner, scoped package metadata, this document, and the `.github/workflows/test.yml` and `.github/workflows/publish.yml` workflows. Intended for this fork's `master`, not upstream. |
 
 Propose the clean branch when offering the repairs upstream. Never propose the distribution branch upstream. Keep commit-specific preparation history, review evidence, and publication status in the corresponding pull request or release record, not in the shipped package documentation.
 
@@ -38,14 +38,14 @@ Live subscription testing requires the maintainer's official human-controlled lo
 
 ## Automatic npm publishing
 
-The workflow runs tests on pull requests, `master` pushes, and published GitHub Releases. Only a published GitHub Release with a `fork-v*` tag in `brunoorsolon/claude-agent-sdk-pi-puglab` can publish to npm; pushing a tag alone does not publish. Publishing waits for all three Pi test jobs, requires the tagged commit to be reachable from this fork's `master`, and verifies both the scoped package name and `fork-v<package.json version>` release tag. It uses GitHub-hosted runners, Node 24.22.1, and npm trusted publishing via OIDC rather than a stored publish token. No GitHub environment is required. Action revisions are pinned. The npm artifact includes only the extension, TypeScript configuration, documentation, license, screenshot, and standard npm metadata.
+Two workflows keep testing and publishing separate. `test.yml` runs the three Pi test jobs on pull requests and `master` pushes. `publish.yml` runs only for a published GitHub Release with a `vX.Y.Z` tag in `brunoorsolon/claude-agent-sdk-pi-puglab`; pushing a tag alone does not publish. Publishing does not rerun the tests: it relies on the tagged commit being reachable from this fork's `master`, whose push already ran `test.yml`. It verifies the scoped package name and that the release tag equals `v<package.json version>`, then publishes npm version `X.Y.Z`. It uses GitHub-hosted runners, Node 24.22.1, and npm trusted publishing via OIDC rather than a stored publish token. No GitHub environment is required. Action revisions are pinned. The npm artifact includes only the extension, TypeScript configuration, documentation, license, screenshot, and standard npm metadata.
 
 The maintainer must complete these steps before making a release:
 
-1. Review the maintained feature branch and merge it into this fork's `master`. Keep the clean upstream-ready branch separate. Protect `master` and the `fork-v*` release-tag pattern appropriately.
+1. Review the maintained feature branch and merge it into this fork's `master`. Keep the clean upstream-ready branch separate. Protect `master` and the `v*` release-tag pattern appropriately.
 2. Confirm control of the npm `@puglab` scope and package name `@puglab/claude-agent-sdk-pi`. If the package does not yet exist and npm requires a bootstrap publication before package-level publisher settings are available, the maintainer must perform that first publication through their own official npm login. An already published version cannot be published again by the workflow.
 3. In npm's package settings, configure the GitHub trusted publisher with owner `brunoorsolon`, repository `claude-agent-sdk-pi-puglab`, and workflow filename `publish.yml`. Leave the environment field blank. Explicitly allow direct `npm publish`, not stage-only publishing. No GitHub environment or stored npm token is required. Newly created npm publisher configurations currently expire unless their first successful publication occurs within two days, so coordinate setup with the intended release.
-4. After validation and publication approval, publish a GitHub Release whose tag points to the merged commit and matches the unused package version. For example, package version `1.1.0` requires release tag `fork-v1.1.0`. Publishing the GitHub Release requests a real public npm publication; creating or pushing a tag alone does not. Never reuse an already published npm version, including one published manually.
+4. After `test.yml` passes on `master`, validation, and publication approval, publish a GitHub Release whose tag points to the merged commit and matches the unused package version. For example, package version `1.1.0` requires release tag `v1.1.0`. Publishing the GitHub Release requests a real public npm publication; creating or pushing a tag alone does not. Never reuse an already published npm version, including one published manually.
 
 Fork versions can match their upstream baseline, but npm versions are immutable: fork-only changes cannot overwrite an existing scoped version. Each distinct publication needs a distinct version, even if upstream has not advanced. Preserve the upstream baseline in this document when that happens. The workflow does not bump versions or create tags automatically.
 
@@ -53,7 +53,7 @@ Official references: [npm trusted publishing](https://docs.npmjs.com/trusted-pub
 
 ## Exact consumer pin and upstream maintenance
 
-After publication, use `pi install npm:@puglab/claude-agent-sdk-pi@1.0.22`, or the equivalent exact package source in the consumer's own configuration. Keep any consumer dependency lockfile. A git alternative is `pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@fork-v1.0.22` after that tag exists; an exact full commit SHA is preferable if tag mutability is a concern. Manage consumer installation and updates in the consumer repository.
+After publication, use `pi install npm:@puglab/claude-agent-sdk-pi@1.0.22`, or the equivalent exact package source in the consumer's own configuration. Keep any consumer dependency lockfile. A git alternative is `pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@v1.0.22` after that tag exists; an exact full commit SHA is preferable if tag mutability is a concern. Manage consumer installation and updates in the consumer repository.
 
 To incorporate upstream updates without sending fork metadata back:
 

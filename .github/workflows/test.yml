@@ -1,0 +1,30 @@
+name: Test maintained fork
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pi: ['0.74.0', '1.4.0', '1.5.0']
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install the exact Pi loader under test
+        run: npm install --prefix "$RUNNER_TEMP/pi" --ignore-scripts --no-package-lock --no-audit --no-fund "@earendil-works/pi-coding-agent@$PI_VERSION"
+        env:
+          PI_VERSION: ${{ matrix.pi }}
+      - run: npm test
+        env:
+          PI_TEST_AGENT_ENTRY: file://${{ runner.temp }}/pi/node_modules/@earendil-works/pi-coding-agent/dist/index.js
