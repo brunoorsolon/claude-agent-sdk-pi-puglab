@@ -1,18 +1,44 @@
 {
-  "name": "claude-agent-sdk-pi",
+  "name": "@puglab/claude-agent-sdk-pi",
   "version": "1.0.22",
+  "description": "Unofficial maintained fork of claude-agent-sdk-pi; Claude Agent SDK requests with Pi tool execution",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brunoorsolon/claude-agent-sdk-pi-puglab.git"
+  },
+  "homepage": "https://github.com/brunoorsolon/claude-agent-sdk-pi-puglab#readme",
+  "bugs": {
+    "url": "https://github.com/brunoorsolon/claude-agent-sdk-pi-puglab/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "files": [
+    "index.ts",
+    "tsconfig.json",
+    "README.md",
+    "FORK.md",
+    "LICENSE",
+    "screenshot.png"
+  ],
   "keywords": [
     "pi-package"
   ],
   "type": "module",
+  "scripts": {
+    "test": "node --test --test-timeout=10000 test/*.test.mjs"
+  },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.2.126",
     "@anthropic-ai/sdk": "^0.73.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "change-case": "^5.4.4"
   },
   "peerDependencies": {
-    "@earendil-works/pi-ai": "^0.74.0",
-    "@earendil-works/pi-coding-agent": "^0.74.0"
+    "@earendil-works/pi-ai": "^0.74.0 || ^1.4.0",
+    "@earendil-works/pi-coding-agent": "^0.74.0 || ^1.4.0"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^0.74.0",
