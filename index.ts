@@ -712,24 +712,28 @@ const DEFAULT_OUTPUT_TOKENS = 32000;
 const MIN_THINKING_TOKENS = 1024;
 
 function positiveInteger(value: unknown): number | undefined {
-	const number = typeof value === "number" || typeof value === "string" ? Number(value) : NaN;
-	return Number.isSafeInteger(number) && number > 0 ? number : undefined;
+	return Number.isSafeInteger(value) && (value as number) > 0 ? (value as number) : undefined;
 }
 
 // Derives the output limit and thinking budget together, so Claude Code never clamps thinking into the
 // text room. An explicit cap (Pi's per-request maxTokens or the user's CLAUDE_CODE_MAX_OUTPUT_TOKENS;
 // the lower wins) is never raised. Without one, the limit is the budget plus the default text room.
+// outputTokens is undefined when Claude Code should keep the user's own value.
 function boundManualThinking(budget: number, model: Model<any>, options?: SimpleStreamOptions) {
-	const explicitCap = Math.min(
-		positiveInteger(options?.maxTokens) ?? Infinity,
-		positiveInteger(process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS) ?? Infinity,
-	);
+	// Claude Code's integer reading, so "20000.5" is the 20,000 cap it enforces; it rejects what this rejects.
+	const userCap = Number.parseInt(process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS ?? "", 10);
+	const callerCap = positiveInteger(options?.maxTokens) ?? Infinity;
+	const explicitCap = Math.min(callerCap, userCap > 0 ? userCap : Infinity);
 	const limit = Math.min(positiveInteger(model.maxTokens) ?? DEFAULT_OUTPUT_TOKENS, explicitCap);
 	const outputTokens = explicitCap < Infinity ? limit : Math.min(limit, budget + DEFAULT_OUTPUT_TOKENS);
 	// Text keeps the default room, or half the limit when the limit is too small for that.
 	const thinkingTokens = Math.min(budget, outputTokens - Math.min(DEFAULT_OUTPUT_TOKENS, Math.ceil(outputTokens / 2)));
-	// A limit that cannot hold the minimum budget disables thinking; the SDK sends 0 as --thinking disabled.
-	return { outputTokens, thinkingTokens: outputTokens > MIN_THINKING_TOKENS ? Math.max(MIN_THINKING_TOKENS, thinkingTokens) : 0 };
+	return {
+		// Claude Code versions parse the user's value differently, so it stays as written unless Pi's cap is lower.
+		outputTokens: userCap > 0 && callerCap >= userCap ? undefined : outputTokens,
+		// A limit that cannot hold the minimum budget disables thinking; the SDK sends 0 as --thinking disabled.
+		thinkingTokens: outputTokens > MIN_THINKING_TOKENS ? Math.max(MIN_THINKING_TOKENS, thinkingTokens) : 0,
+	};
 }
 
 // Claude Code's own pre-adaptive models: it applies a manual budget only to these and runs every
@@ -933,7 +937,7 @@ function streamClaudeAgentSdk(model: Model<any>, piContext: Context, options?: S
 					const { outputTokens, thinkingTokens } = boundManualThinking(thinkingBudget, model, options);
 					queryOptions.maxThinkingTokens = thinkingTokens;
 					// The SDK replaces, not merges, the child environment.
-					queryOptions.env = { ...process.env, CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(outputTokens) };
+					if (outputTokens != null) queryOptions.env = { ...process.env, CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(outputTokens) };
 				}
 			}
 

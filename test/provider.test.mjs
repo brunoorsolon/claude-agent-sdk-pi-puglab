@@ -175,6 +175,12 @@ test("the user's CLAUDE_CODE_MAX_OUTPUT_TOKENS is never raised and bounds manual
     process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '20000';
     assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '10000', outputTokens: '20000' });
     assert.deepEqual(budget(await run({ model: sonnet45, options: { maxTokens: 13107 } })), { thinkingTokens: '6553', outputTokens: '13107' });
+    // Claude Code reads this as a 20,000 cap and receives it as written.
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '20000.5';
+    assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '10000', outputTokens: '20000.5' });
+    // Claude Code rejects this and would fall back to its default, so the provider sets the limit.
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '0';
+    assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '31999', outputTokens: '63999' });
     process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '64000';
     assert.deepEqual(budget(await run({ model: sonnet45, options: { reasoning: 'low' } })), { thinkingTokens: '8192', outputTokens: '64000' });
     assert.deepEqual(budget(await run()), { thinking: 'adaptive', effort: 'high', outputTokens: '64000' });
