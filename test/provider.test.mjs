@@ -55,12 +55,12 @@ const parameters = {
 const tools = [{ name: 'contract_tool', description: 'Distinct custom contract', parameters }];
 const systemPrompt = ['PARENT_CONTEXT: preserve Pi and ~/.pi/agent verbatim', 'SUBAGENT_ROLE: inspect only /project/reference', 'PROJECT_INSTRUCTIONS: use custom_tool, not CustomTool', '<location>/unchanged/.pi/skills/task/SKILL.md</location>'].join('\n\n');
 let sequence = 0;
-async function run({ settings = {}, signal, scenario = 'normal', messages = [{ role: 'user', content: 'fixture request', timestamp: 1 }] } = {}) {
+async function run({ settings = {}, signal, scenario = 'normal', messages = [{ role: 'user', content: 'fixture request', timestamp: 1 }], model: runModel = model, options = {} } = {}) {
   writeFileSync(join(project, '.pi/settings.json'), JSON.stringify({ claudeAgentSdkProvider: settings }));
   const capture = join(root, `capture-${++sequence}.jsonl`);
   process.env.SDK_TEST_CAPTURE = capture;
   process.env.SDK_TEST_SCENARIO = scenario;
-  const stream = provider.streamSimple(model, piContext(systemPrompt, tools, messages), { reasoning: 'high', signal });
+  const stream = provider.streamSimple(runModel, piContext(systemPrompt, tools, messages), { reasoning: 'high', ...options, signal });
   const events = [];
   for await (const event of stream) events.push(event);
   const records = readFileSync(capture, 'utf8').trim().split('\n').map(JSON.parse);
@@ -139,4 +139,68 @@ test('cancellation ends the provider stream as aborted', async () => {
     assert.equal(events.at(-1).type, 'error');
     assert.equal(events.at(-1).reason, 'aborted');
   } finally { clearInterval(timer); }
+});
+
+// Thinking flags and the child's output limit, as the SDK hands them to the Claude Code process.
+const providerModel = (id, overrides = {}) => ({ ...provider.models.find((model) => model.id === id), provider: 'claude-agent-sdk', api: 'claude-agent-sdk', ...overrides });
+const sonnet45 = providerModel('claude-sonnet-4-5');
+function budget({ records }) {
+  const { argv, maxOutputTokens } = records.find((record) => record.argv);
+  const flag = (name) => argv.includes(name) ? argv[argv.indexOf(name) + 1] : undefined;
+  const settings = { thinking: flag('--thinking'), effort: flag('--effort'), thinkingTokens: flag('--max-thinking-tokens'), outputTokens: maxOutputTokens };
+  return Object.fromEntries(Object.entries(settings).filter(([, value]) => value !== undefined));
+}
+
+test('manual thinking derives the output limit and budget together, within the model limit', async () => {
+  assert.equal(sonnet45.maxTokens, 64000);
+  const cases = [
+    // A 32,000-token model: capping 31,999 thinking to 15,616 but requesting 48,383 output was the original inconsistency.
+    // Pi 1.x no longer lists Opus 4.1, so its id and limit ride on a listed manual model.
+    [providerModel('claude-sonnet-4-5', { id: 'claude-opus-4-1', maxTokens: 32000 }), {}, { thinkingTokens: '16000', outputTokens: '32000' }],
+    [sonnet45, {}, { thinkingTokens: '31999', outputTokens: '63999' }],
+    [providerModel('claude-sonnet-4-5', { maxTokens: 8192 }), {}, { thinkingTokens: '4096', outputTokens: '8192' }],
+    ...[undefined, Number.NaN, 0, -1, 'many'].map((maxTokens) => [providerModel('claude-sonnet-4-5', { maxTokens }), {}, { thinkingTokens: '16000', outputTokens: '32000' }]),
+    [sonnet45, { thinkingBudgets: { high: 4000 } }, { thinkingTokens: '4000', outputTokens: '36000' }],
+    // Pi's per-request maxTokens caps the whole output, as compaction requests do.
+    [sonnet45, { maxTokens: 13107 }, { thinkingTokens: '6553', outputTokens: '13107' }],
+    [sonnet45, { maxTokens: 1000 }, { thinking: 'disabled', outputTokens: '1000' }],
+  ];
+  for (const [caseModel, options, expected] of cases) {
+    assert.deepEqual(budget(await run({ model: caseModel, options })), expected, `${caseModel.maxTokens} ${JSON.stringify(options)}`);
+  }
+});
+
+test("the user's CLAUDE_CODE_MAX_OUTPUT_TOKENS is never raised and bounds manual thinking", async () => {
+  try {
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '20000';
+    assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '10000', outputTokens: '20000' });
+    assert.deepEqual(budget(await run({ model: sonnet45, options: { maxTokens: 13107 } })), { thinkingTokens: '6553', outputTokens: '13107' });
+    // Claude Code reads this as a 20,000 cap and receives it as written.
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '20000.5';
+    assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '10000', outputTokens: '20000.5' });
+    // Claude Code 2.1.316 reads 50,000; 2.1.126 rejects it, so both receive the 50,000 cap as an integer.
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '.5e5';
+    assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '25000', outputTokens: '50000' });
+    // 2.1.316 reads 64,000 and 2.1.126 reads 64: only the lowest reading fits both and Pi's cap.
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '64,000';
+    assert.deepEqual(budget(await run({ model: sonnet45, options: { maxTokens: 13107 } })), { thinking: 'disabled', outputTokens: '64' });
+    // Every Claude Code rejects this and would fall back to its default, so the provider sets the limit.
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '0';
+    assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '31999', outputTokens: '63999' });
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '64000';
+    assert.deepEqual(budget(await run({ model: sonnet45, options: { reasoning: 'low' } })), { thinkingTokens: '8192', outputTokens: '64000' });
+    assert.deepEqual(budget(await run()), { thinking: 'adaptive', effort: 'high', outputTokens: '64000' });
+  } finally {
+    delete process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS;
+  }
+});
+
+test('adaptive thinking and absent reasoning leave the output limit to Claude Code', async () => {
+  assert.deepEqual(budget(await run()), { thinking: 'adaptive', effort: 'high' });
+  assert.deepEqual(budget(await run({ options: { reasoning: undefined } })), {});
+  assert.deepEqual(budget(await run({ model: sonnet45, options: { reasoning: undefined } })), {});
+  // Claude Code runs newer models adaptively, so a manual budget's output limit would only shrink theirs.
+  for (const id of ['claude-opus-5-5', 'claude-sonnet-5', 'claude-haiku-5-5', 'claude-fable-5-1', 'claude-opus-6']) {
+    assert.deepEqual(budget(await run({ model: providerModel('claude-sonnet-4-5', { id, maxTokens: 128000 }) })), { thinking: 'adaptive', effort: 'high' }, id);
+  }
 });

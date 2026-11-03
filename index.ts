@@ -705,15 +705,53 @@ function mapThinkingTokens(
 	return DEFAULT_THINKING_BUDGETS[effectiveReasoning];
 }
 
+// Claude Code's default output limit for manually budgeted models: the text room added to a thinking
+// budget, and the assumed model limit when Pi's metadata has none (never an unbounded fallback).
+const DEFAULT_OUTPUT_TOKENS = 32000;
+// The API rejects a manual thinking budget below this.
+const MIN_THINKING_TOKENS = 1024;
+
+function positiveInteger(value: unknown): number | undefined {
+	return Number.isSafeInteger(value) && (value as number) > 0 ? (value as number) : undefined;
+}
+
+// Each supported Claude Code reading of the user's CLAUDE_CODE_MAX_OUTPUT_TOKENS: 2.1.126 uses parseInt;
+// 2.1.316 first accepts scientific notation and digit groups ("2e4", "64,000"). NaN or <= 0: that version rejects it.
+function userOutputCapReadings(raw: string | undefined): number[] {
+	if (!raw) return [];
+	const text = raw.trim();
+	let latest = Number.parseInt(text, 10);
+	if (text.length <= 32 && /^[+-]?(\d+(\.\d*)?|\.\d+)[eE][+-]?\d+$/.test(text)) latest = Number.isInteger(Number(text)) ? Number(text) : NaN;
+	else if (text.length <= 32 && /^[+-]?\d{1,3}([_,\u00A0\u202F ])\d{3}(?:\1\d{3})*$/.test(text)) latest = Number.parseInt(text.replace(/[_,\u00A0\u202F ]/g, ""), 10);
+	return [Number.parseInt(raw, 10), latest];
+}
+
+// Derives the output limit and thinking budget together, so Claude Code never clamps thinking into the
+// text room. Explicit caps (Pi's per-request maxTokens and every reading of the user's value) are never
+// raised; the lowest wins. Without one, the limit is the budget plus the default text room.
+// outputTokens is undefined when Claude Code should keep the user's value as written.
+function boundManualThinking(budget: number, model: Model<any>, options?: SimpleStreamOptions) {
+	const readings = userOutputCapReadings(process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS);
+	const userCaps = readings.filter((cap) => cap > 0);
+	const callerCap = positiveInteger(options?.maxTokens) ?? Infinity;
+	const explicitCap = Math.min(callerCap, ...userCaps);
+	const limit = Math.min(positiveInteger(model.maxTokens) ?? DEFAULT_OUTPUT_TOKENS, explicitCap);
+	const outputTokens = explicitCap < Infinity ? limit : Math.min(limit, budget + DEFAULT_OUTPUT_TOKENS);
+	// Text keeps the default room, or half the limit when the limit is too small for that.
+	const thinkingTokens = Math.min(budget, outputTokens - Math.min(DEFAULT_OUTPUT_TOKENS, Math.ceil(outputTokens / 2)));
+	return {
+		// The user's value stays as written only when every version accepts it within Pi's cap: a version that
+		// rejects it falls back to its own default. Otherwise every version receives the same lowest cap.
+		outputTokens: userCaps.length > 0 && userCaps.length === readings.length && callerCap >= Math.max(...userCaps) ? undefined : outputTokens,
+		// A limit that cannot hold the minimum budget disables thinking; the SDK sends 0 as --thinking disabled.
+		thinkingTokens: outputTokens > MIN_THINKING_TOKENS ? Math.max(MIN_THINKING_TOKENS, thinkingTokens) : 0,
+	};
+}
+
+// Claude Code's own pre-adaptive models: it applies a manual budget only to these and runs every
+// other model adaptively, so a manual budget's output limit would only shrink theirs.
 function supportsAdaptiveThinking(modelId: string): boolean {
-	return (
-		modelId.includes("opus-4-6") ||
-		modelId.includes("opus-4.6") ||
-		modelId.includes("opus-4-7") ||
-		modelId.includes("opus-4.7") ||
-		modelId.includes("sonnet-4-6") ||
-		modelId.includes("sonnet-4.6")
-	);
+	return !/claude-3-|(opus|sonnet)-4-(0|20)|opus-4-1|(opus|sonnet|haiku)-4-5/.test(modelId);
 }
 
 function mapThinkingLevelToEffort(model: Model<any>, level: ThinkingLevel): EffortLevel {
@@ -906,9 +944,12 @@ function streamClaudeAgentSdk(model: Model<any>, piContext: Context, options?: S
 				queryOptions.thinking = { type: "adaptive", display: "summarized" } satisfies ThinkingConfig;
 				queryOptions.effort = mapThinkingLevelToEffort(model, options.reasoning);
 			} else {
-				const maxThinkingTokens = mapThinkingTokens(options?.reasoning, model.id, options?.thinkingBudgets);
-				if (maxThinkingTokens != null) {
-					queryOptions.maxThinkingTokens = maxThinkingTokens;
+				const thinkingBudget = mapThinkingTokens(options?.reasoning, model.id, options?.thinkingBudgets);
+				if (thinkingBudget != null) {
+					const { outputTokens, thinkingTokens } = boundManualThinking(thinkingBudget, model, options);
+					queryOptions.maxThinkingTokens = thinkingTokens;
+					// The SDK replaces, not merges, the child environment.
+					if (outputTokens != null) queryOptions.env = { ...process.env, CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(outputTokens) };
 				}
 			}
 
