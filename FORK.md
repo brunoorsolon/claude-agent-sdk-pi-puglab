@@ -53,7 +53,7 @@ Official references: [npm trusted publishing](https://docs.npmjs.com/trusted-pub
 
 ## Exact consumer pin and upstream maintenance
 
-After publication, use `pi install npm:@puglab/claude-agent-sdk-pi@1.0.22`, or the equivalent exact package source in the consumer's own configuration. Keep any consumer dependency lockfile. A git alternative is `pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@v1.0.22` after that tag exists; an exact full commit SHA is preferable if tag mutability is a concern. Manage consumer installation and updates in the consumer repository.
+After publication, use `pi install npm:@puglab/claude-agent-sdk-pi@1.0.24`, or the equivalent exact package source in the consumer's own configuration. Keep any consumer dependency lockfile. A git alternative is `pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@v1.0.24` after that tag exists; an exact full commit SHA is preferable if tag mutability is a concern. Manage consumer installation and updates in the consumer repository.
 
 To incorporate upstream updates without sending fork metadata back:
 
