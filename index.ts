@@ -705,15 +705,37 @@ function mapThinkingTokens(
 	return DEFAULT_THINKING_BUDGETS[effectiveReasoning];
 }
 
-function supportsAdaptiveThinking(modelId: string): boolean {
-	return (
-		modelId.includes("opus-4-6") ||
-		modelId.includes("opus-4.6") ||
-		modelId.includes("opus-4-7") ||
-		modelId.includes("opus-4.7") ||
-		modelId.includes("sonnet-4-6") ||
-		modelId.includes("sonnet-4.6")
+// Claude Code's default output limit for manually budgeted models: the text room added to a thinking
+// budget, and the assumed model limit when Pi's metadata has none (never an unbounded fallback).
+const DEFAULT_OUTPUT_TOKENS = 32000;
+// The API rejects a manual thinking budget below this.
+const MIN_THINKING_TOKENS = 1024;
+
+function positiveInteger(value: unknown): number | undefined {
+	const number = typeof value === "number" || typeof value === "string" ? Number(value) : NaN;
+	return Number.isSafeInteger(number) && number > 0 ? number : undefined;
+}
+
+// Derives the output limit and thinking budget together, so Claude Code never clamps thinking into the
+// text room. An explicit cap (Pi's per-request maxTokens or the user's CLAUDE_CODE_MAX_OUTPUT_TOKENS;
+// the lower wins) is never raised. Without one, the limit is the budget plus the default text room.
+function boundManualThinking(budget: number, model: Model<any>, options?: SimpleStreamOptions) {
+	const explicitCap = Math.min(
+		positiveInteger(options?.maxTokens) ?? Infinity,
+		positiveInteger(process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS) ?? Infinity,
 	);
+	const limit = Math.min(positiveInteger(model.maxTokens) ?? DEFAULT_OUTPUT_TOKENS, explicitCap);
+	const outputTokens = explicitCap < Infinity ? limit : Math.min(limit, budget + DEFAULT_OUTPUT_TOKENS);
+	// Text keeps the default room, or half the limit when the limit is too small for that.
+	const thinkingTokens = Math.min(budget, outputTokens - Math.min(DEFAULT_OUTPUT_TOKENS, Math.ceil(outputTokens / 2)));
+	// A limit that cannot hold the minimum budget disables thinking; the SDK sends 0 as --thinking disabled.
+	return { outputTokens, thinkingTokens: outputTokens > MIN_THINKING_TOKENS ? Math.max(MIN_THINKING_TOKENS, thinkingTokens) : 0 };
+}
+
+// Claude Code's own pre-adaptive models: it applies a manual budget only to these and runs every
+// other model adaptively, so a manual budget's output limit would only shrink theirs.
+function supportsAdaptiveThinking(modelId: string): boolean {
+	return !/claude-3-|(opus|sonnet)-4-(0|20)|opus-4-1|(opus|sonnet|haiku)-4-5/.test(modelId);
 }
 
 function mapThinkingLevelToEffort(model: Model<any>, level: ThinkingLevel): EffortLevel {
@@ -906,9 +928,12 @@ function streamClaudeAgentSdk(model: Model<any>, piContext: Context, options?: S
 				queryOptions.thinking = { type: "adaptive", display: "summarized" } satisfies ThinkingConfig;
 				queryOptions.effort = mapThinkingLevelToEffort(model, options.reasoning);
 			} else {
-				const maxThinkingTokens = mapThinkingTokens(options?.reasoning, model.id, options?.thinkingBudgets);
-				if (maxThinkingTokens != null) {
-					queryOptions.maxThinkingTokens = maxThinkingTokens;
+				const thinkingBudget = mapThinkingTokens(options?.reasoning, model.id, options?.thinkingBudgets);
+				if (thinkingBudget != null) {
+					const { outputTokens, thinkingTokens } = boundManualThinking(thinkingBudget, model, options);
+					queryOptions.maxThinkingTokens = thinkingTokens;
+					// The SDK replaces, not merges, the child environment.
+					queryOptions.env = { ...process.env, CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(outputTokens) };
 				}
 			}
 

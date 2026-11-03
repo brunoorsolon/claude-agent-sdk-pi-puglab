@@ -3,7 +3,7 @@ import { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 const capture = (value) => appendFileSync(process.env.SDK_TEST_CAPTURE, JSON.stringify(value) + '\n');
 const send = (value) => process.stdout.write(JSON.stringify(value) + '\n');
-capture({ argv: process.argv.slice(2) });
+capture({ argv: process.argv.slice(2), maxOutputTokens: process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS });
 const pending = new Map();
 let sequence = 0;
 function request(request) {
