@@ -715,22 +715,34 @@ function positiveInteger(value: unknown): number | undefined {
 	return Number.isSafeInteger(value) && (value as number) > 0 ? (value as number) : undefined;
 }
 
+// Each supported Claude Code reading of the user's CLAUDE_CODE_MAX_OUTPUT_TOKENS: 2.1.126 uses parseInt;
+// 2.1.316 first accepts scientific notation and digit groups ("2e4", "64,000"). NaN or <= 0: that version rejects it.
+function userOutputCapReadings(raw: string | undefined): number[] {
+	if (!raw) return [];
+	const text = raw.trim();
+	let latest = Number.parseInt(text, 10);
+	if (text.length <= 32 && /^[+-]?(\d+(\.\d*)?|\.\d+)[eE][+-]?\d+$/.test(text)) latest = Number.isInteger(Number(text)) ? Number(text) : NaN;
+	else if (text.length <= 32 && /^[+-]?\d{1,3}([_,\u00A0\u202F ])\d{3}(?:\1\d{3})*$/.test(text)) latest = Number.parseInt(text.replace(/[_,\u00A0\u202F ]/g, ""), 10);
+	return [Number.parseInt(raw, 10), latest];
+}
+
 // Derives the output limit and thinking budget together, so Claude Code never clamps thinking into the
-// text room. An explicit cap (Pi's per-request maxTokens or the user's CLAUDE_CODE_MAX_OUTPUT_TOKENS;
-// the lower wins) is never raised. Without one, the limit is the budget plus the default text room.
-// outputTokens is undefined when Claude Code should keep the user's own value.
+// text room. Explicit caps (Pi's per-request maxTokens and every reading of the user's value) are never
+// raised; the lowest wins. Without one, the limit is the budget plus the default text room.
+// outputTokens is undefined when Claude Code should keep the user's value as written.
 function boundManualThinking(budget: number, model: Model<any>, options?: SimpleStreamOptions) {
-	// Claude Code's integer reading, so "20000.5" is the 20,000 cap it enforces; it rejects what this rejects.
-	const userCap = Number.parseInt(process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS ?? "", 10);
+	const readings = userOutputCapReadings(process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS);
+	const userCaps = readings.filter((cap) => cap > 0);
 	const callerCap = positiveInteger(options?.maxTokens) ?? Infinity;
-	const explicitCap = Math.min(callerCap, userCap > 0 ? userCap : Infinity);
+	const explicitCap = Math.min(callerCap, ...userCaps);
 	const limit = Math.min(positiveInteger(model.maxTokens) ?? DEFAULT_OUTPUT_TOKENS, explicitCap);
 	const outputTokens = explicitCap < Infinity ? limit : Math.min(limit, budget + DEFAULT_OUTPUT_TOKENS);
 	// Text keeps the default room, or half the limit when the limit is too small for that.
 	const thinkingTokens = Math.min(budget, outputTokens - Math.min(DEFAULT_OUTPUT_TOKENS, Math.ceil(outputTokens / 2)));
 	return {
-		// Claude Code versions parse the user's value differently, so it stays as written unless Pi's cap is lower.
-		outputTokens: userCap > 0 && callerCap >= userCap ? undefined : outputTokens,
+		// The user's value stays as written only when every version accepts it within Pi's cap: a version that
+		// rejects it falls back to its own default. Otherwise every version receives the same lowest cap.
+		outputTokens: userCaps.length > 0 && userCaps.length === readings.length && callerCap >= Math.max(...userCaps) ? undefined : outputTokens,
 		// A limit that cannot hold the minimum budget disables thinking; the SDK sends 0 as --thinking disabled.
 		thinkingTokens: outputTokens > MIN_THINKING_TOKENS ? Math.max(MIN_THINKING_TOKENS, thinkingTokens) : 0,
 	};

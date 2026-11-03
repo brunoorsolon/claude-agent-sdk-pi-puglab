@@ -178,7 +178,13 @@ test("the user's CLAUDE_CODE_MAX_OUTPUT_TOKENS is never raised and bounds manual
     // Claude Code reads this as a 20,000 cap and receives it as written.
     process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '20000.5';
     assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '10000', outputTokens: '20000.5' });
-    // Claude Code rejects this and would fall back to its default, so the provider sets the limit.
+    // Claude Code 2.1.316 reads 50,000; 2.1.126 rejects it, so both receive the 50,000 cap as an integer.
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '.5e5';
+    assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '25000', outputTokens: '50000' });
+    // 2.1.316 reads 64,000 and 2.1.126 reads 64: only the lowest reading fits both and Pi's cap.
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '64,000';
+    assert.deepEqual(budget(await run({ model: sonnet45, options: { maxTokens: 13107 } })), { thinking: 'disabled', outputTokens: '64' });
+    // Every Claude Code rejects this and would fall back to its default, so the provider sets the limit.
     process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '0';
     assert.deepEqual(budget(await run({ model: sonnet45 })), { thinkingTokens: '31999', outputTokens: '63999' });
     process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '64000';
