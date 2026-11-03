@@ -36,4 +36,5 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
       - run: npm publish --access public --provenance
