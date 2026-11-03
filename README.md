@@ -22,7 +22,7 @@ This extension registers a custom provider that routes LLM calls through the **C
 1) Install the extension globally (npm is the preferred source now):
 
 ```
-pi install npm:@puglab/claude-agent-sdk-pi@1.0.22
+pi install npm:@puglab/claude-agent-sdk-pi@1.0.24
 ```
 
 Keep the exact version in consumer configuration and preserve the consumer lockfile where applicable.
@@ -30,7 +30,7 @@ Keep the exact version in consumer configuration and preserve the consumer lockf
 **Alternative (git):**
 
 ```
-pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@v1.0.22
+pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@v1.0.24
 ```
 
 See **pi-coding-agent** install docs for other install sources and paths.
