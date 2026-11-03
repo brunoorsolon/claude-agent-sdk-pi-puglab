@@ -51,6 +51,14 @@ Fork versions can match their upstream baseline, but npm versions are immutable:
 
 Official references: [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) and [npm provenance](https://docs.npmjs.com/generating-provenance-statements/). Trusted publishing requires npm 11.5.1 or later and Node 22.14.0 or later. The package's repository URL must match this fork; public provenance also requires the repository and package to be public. No traditional npm token is needed by the workflow.
 
+## Dependency updates
+
+`.github/dependabot.yml`, adapted from [upstream pull request 18](https://github.com/prateekmedia/claude-agent-sdk-pi/pull/18) by Joseph Mearman, checks the root npm package and the GitHub Actions revisions weekly. Each ecosystem keeps at most five version-update pull requests open and skips releases younger than seven days. Dependabot only opens pull requests: nothing merges automatically, and merging an update neither bumps the package version nor creates a tag or GitHub Release, so it publishes nothing.
+
+Every update pull request runs `test.yml` and needs human review like any other change. Seven days of age and a green run are not enough for `@anthropic-ai/claude-agent-sdk` or Pi updates: the tests use disposable transport fixtures, so review those updates against the prompt/settings seam, MCP contracts, and tool denial as described for upstream updates below.
+
+The seven-day cooldown is not a security guarantee. It only delays version updates; a broken or malicious release can stay published longer than seven days. It does not apply to Dependabot security updates, which are a separate repository setting, are not delayed by the cooldown, and have their own fixed limit of ten open pull requests.
+
 ## Exact consumer pin and upstream maintenance
 
 After publication, use `pi install npm:@puglab/claude-agent-sdk-pi@1.0.24`, or the equivalent exact package source in the consumer's own configuration. Keep any consumer dependency lockfile. A git alternative is `pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@v1.0.24` after that tag exists; an exact full commit SHA is preferable if tag mutability is a concern. Manage consumer installation and updates in the consumer repository.
