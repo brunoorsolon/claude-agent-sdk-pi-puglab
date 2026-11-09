@@ -526,7 +526,8 @@ function readSettingsFile(filePath: string): ProviderSettings {
 			appendSystemPrompt: appendSystemPrompt ?? (legacyDisable ? false : undefined),
 			settingSources,
 			strictMcpConfig,
-			excludeDynamicSections,
+			// Omitted, not set to undefined: the project file must not erase a global opt-in.
+			...(excludeDynamicSections === undefined ? {} : { excludeDynamicSections }),
 		};
 	} catch {
 		return {};
