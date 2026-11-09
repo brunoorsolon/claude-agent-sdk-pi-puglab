@@ -55,8 +55,15 @@ const parameters = {
 const tools = [{ name: 'contract_tool', description: 'Distinct custom contract', parameters }];
 const systemPrompt = ['PARENT_CONTEXT: preserve Pi and ~/.pi/agent verbatim', 'SUBAGENT_ROLE: inspect only /project/reference', 'PROJECT_INSTRUCTIONS: use custom_tool, not CustomTool', '<location>/unchanged/.pi/skills/task/SKILL.md</location>'].join('\n\n');
 let sequence = 0;
-async function run({ settings = {}, signal, scenario = 'normal', messages = [{ role: 'user', content: 'fixture request', timestamp: 1 }], model: runModel = model, options = {} } = {}) {
+async function run({ settings = {}, globalSettings, signal, scenario = 'normal', messages = [{ role: 'user', content: 'fixture request', timestamp: 1 }], model: runModel = model, options = {} } = {}) {
   writeFileSync(join(project, '.pi/settings.json'), JSON.stringify({ claudeAgentSdkProvider: settings }));
+  const globalSettingsPath = join(root, '.pi/agent/settings.json');
+  if (globalSettings) {
+    mkdirSync(join(root, '.pi/agent'), { recursive: true });
+    writeFileSync(globalSettingsPath, JSON.stringify({ claudeAgentSdkProvider: globalSettings }));
+  } else {
+    rmSync(globalSettingsPath, { force: true });
+  }
   const capture = join(root, `capture-${++sequence}.jsonl`);
   process.env.SDK_TEST_CAPTURE = capture;
   process.env.SDK_TEST_SCENARIO = scenario;
@@ -77,6 +84,37 @@ test('effective Pi instructions reach SDK unchanged despite nearer AGENTS.md', a
 test('legacy appendSystemPrompt=false cannot silently discard effective instructions', async () => {
   const { records } = await run({ settings: { appendSystemPrompt: false } });
   assert.deepEqual(initialization(records).systemPrompt, [systemPrompt]);
+});
+
+test('excludeDynamicSections opt-in reaches SDK initialization with the exact Pi prompt', async () => {
+  const { records } = await run({ settings: { excludeDynamicSections: true } });
+  assert.equal(initialization(records).excludeDynamicSections, true);
+  assert.equal(initialization(records).appendSystemPrompt, systemPrompt);
+});
+
+test('absent or disabled excludeDynamicSections leaves prompt defaults unchanged', async () => {
+  const absent = await run();
+  assert.notEqual(initialization(absent.records).excludeDynamicSections, true);
+  assert.equal(initialization(absent.records).appendSystemPrompt, systemPrompt);
+  const disabled = await run({ settings: { excludeDynamicSections: false } });
+  assert.notEqual(initialization(disabled.records).excludeDynamicSections, true);
+  assert.equal(initialization(disabled.records).appendSystemPrompt, systemPrompt);
+});
+
+test('replacement mode transmits the exact Pi prompt and no preset exclusion', async () => {
+  const { records } = await run({ settings: { appendSystemPrompt: false, excludeDynamicSections: true } });
+  assert.deepEqual(initialization(records).systemPrompt, [systemPrompt]);
+  assert.notEqual(initialization(records).excludeDynamicSections, true);
+});
+
+test('global opt-in survives a project that sets an unrelated provider option', async () => {
+  const kept = await run({ globalSettings: { excludeDynamicSections: true }, settings: { strictMcpConfig: true } });
+  assert.equal(initialization(kept.records).excludeDynamicSections, true);
+  const overridden = await run({
+    globalSettings: { excludeDynamicSections: true },
+    settings: { excludeDynamicSections: false },
+  });
+  assert.notEqual(initialization(overridden.records).excludeDynamicSections, true);
 });
 
 test('actual SDK MCP discovery preserves the complete custom-tool schema', async () => {

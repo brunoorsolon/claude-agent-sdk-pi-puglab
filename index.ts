@@ -473,6 +473,13 @@ type ProviderSettings = {
 	 * schemas (a major token cost) when appendSystemPrompt=false.
 	 */
 	strictMcpConfig?: boolean;
+
+	/**
+	 * Strip Claude Code's per-user dynamic preset sections (working directory, auto-memory,
+	 * git status) from the system prompt so it stays static and cacheable. Opt-in; ignored
+	 * in replacement mode, which has no Claude Code preset sections.
+	 */
+	excludeDynamicSections?: boolean;
 };
 
 function loadProviderSettings(): ProviderSettings {
@@ -509,11 +516,18 @@ function readSettingsFile(filePath: string): ProviderSettings {
 		const strictMcpConfig =
 			typeof settingsBlock["strictMcpConfig"] === "boolean" ? settingsBlock["strictMcpConfig"] : undefined;
 
+		const excludeDynamicSections =
+			typeof settingsBlock["excludeDynamicSections"] === "boolean"
+				? settingsBlock["excludeDynamicSections"]
+				: undefined;
+
 		const legacyDisable = false;
 		return {
 			appendSystemPrompt: appendSystemPrompt ?? (legacyDisable ? false : undefined),
 			settingSources,
 			strictMcpConfig,
+			// Omitted, not set to undefined: the project file must not erase a global opt-in.
+			...(excludeDynamicSections === undefined ? {} : { excludeDynamicSections }),
 		};
 	} catch {
 		return {};
@@ -932,7 +946,12 @@ function streamClaudeAgentSdk(model: Model<any>, piContext: Context, options?: S
 					message: TOOL_EXECUTION_DENIED_MESSAGE,
 				}),
 				systemPrompt: appendSystemPrompt
-					? { type: "preset", preset: "claude_code", append: context.systemPrompt }
+					? {
+						type: "preset",
+						preset: "claude_code",
+						append: context.systemPrompt,
+						...(providerSettings.excludeDynamicSections ? { excludeDynamicSections: true } : {}),
+					}
 					: context.systemPrompt ?? "",
 				pathToClaudeCodeExecutable: resolveClaudeCodeExecutable(),
 				...(settingSources ? { settingSources } : {}),
