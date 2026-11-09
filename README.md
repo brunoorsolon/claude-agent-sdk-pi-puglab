@@ -106,6 +106,7 @@ The provider always transmits Pi’s effective system prompt verbatim: `context.
 - **Changed behavior (`appendSystemPrompt: false`):** use the complete Pi prompt as the SDK’s replacement system prompt, without the Claude Code preset. This setting no longer suppresses Pi instructions. Existing users who relied on Claude-only instructions must migrate; there is no silent instruction opt-out. If you followed the previous symlink setup, remove the `~/.claude/CLAUDE.md` and `~/.claude/skills` links to Pi resources when they duplicate Pi’s prompt; remove only the symlinks, not their targets.
 - `settingSources` still selects Claude Code filesystem settings. With `appendSystemPrompt: false`, its default remains `["user", "project"]`. Explicitly selected Claude resources are additional to Pi’s prompt; avoid linking the same instructions into both systems.
 - `strictMcpConfig` still defaults to `false` in append mode and `true` in replacement mode. Enable it to prevent unrelated MCP servers from being auto-loaded. SDK-side execution remains denied in either mode.
+- `excludeDynamicSections` is off by default. Enable it to strip Claude Code’s per-user dynamic preset sections (working directory, auto-memory, git status) from the system prompt so it stays static and cacheable; the supplied Pi prompt is still appended unchanged. It only affects the Claude Code preset, so replacement mode (`appendSystemPrompt: false`) has no preset sections to exclude and ignores it.
 
 For the Claude Code preset plus Pi’s complete prompt, without inherited settings or MCP servers:
 

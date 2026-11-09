@@ -79,6 +79,27 @@ test('legacy appendSystemPrompt=false cannot silently discard effective instruct
   assert.deepEqual(initialization(records).systemPrompt, [systemPrompt]);
 });
 
+test('excludeDynamicSections opt-in reaches SDK initialization with the exact Pi prompt', async () => {
+  const { records } = await run({ settings: { excludeDynamicSections: true } });
+  assert.equal(initialization(records).excludeDynamicSections, true);
+  assert.equal(initialization(records).appendSystemPrompt, systemPrompt);
+});
+
+test('absent or disabled excludeDynamicSections leaves prompt defaults unchanged', async () => {
+  const absent = await run();
+  assert.notEqual(initialization(absent.records).excludeDynamicSections, true);
+  assert.equal(initialization(absent.records).appendSystemPrompt, systemPrompt);
+  const disabled = await run({ settings: { excludeDynamicSections: false } });
+  assert.notEqual(initialization(disabled.records).excludeDynamicSections, true);
+  assert.equal(initialization(disabled.records).appendSystemPrompt, systemPrompt);
+});
+
+test('replacement mode transmits the exact Pi prompt and no preset exclusion', async () => {
+  const { records } = await run({ settings: { appendSystemPrompt: false, excludeDynamicSections: true } });
+  assert.deepEqual(initialization(records).systemPrompt, [systemPrompt]);
+  assert.notEqual(initialization(records).excludeDynamicSections, true);
+});
+
 test('actual SDK MCP discovery preserves the complete custom-tool schema', async () => {
   const { records } = await run();
   const discovery = records.find((record) => record.discovery).discovery;
