@@ -23,7 +23,7 @@ An independent continuation of [prateekmedia/claude-agent-sdk-pi](https://github
 1) Install the extension globally (npm is the preferred source now):
 
 ```
-pi install npm:@puglab/pi-claude-bridge@1.0.25
+pi install npm:@puglab/pi-claude-bridge@1.0.26
 ```
 
 Keep the exact version in consumer configuration and preserve the consumer lockfile where applicable.
@@ -31,7 +31,7 @@ Keep the exact version in consumer configuration and preserve the consumer lockf
 **Alternative (git):**
 
 ```
-pi install git:github.com/brunoorsolon/pi-claude-bridge@v1.0.25
+pi install git:github.com/brunoorsolon/pi-claude-bridge@v1.0.26
 ```
 
 See **pi-coding-agent** install docs for other install sources and paths.
@@ -57,11 +57,11 @@ See **pi-coding-agent** install docs for other install sources and paths.
 
 ### Migrating from the previous package
 
-Once `@puglab/pi-claude-bridge@1.0.25` is published, replace the old package rather than loading both:
+Once `@puglab/pi-claude-bridge@1.0.26` is published, replace the old package rather than loading both:
 
 ```bash
 pi remove npm:@puglab/claude-agent-sdk-pi
-pi install npm:@puglab/pi-claude-bridge@1.0.25
+pi install npm:@puglab/pi-claude-bridge@1.0.26
 ```
 
 If your Pi configuration owns installation, replace the old npm or Git source there instead and preserve its lockfile where applicable. Then reload Pi. The provider ID `claude-agent-sdk` and the settings keys `claudeAgentSdkProvider` / `claude-agent-sdk-provider` are unchanged, so existing model selections and settings still apply. Do not load the original upstream package alongside this one either; it registers the same provider ID.
