@@ -1,9 +1,10 @@
-> [!WARNING]
-> **Unofficial maintained fork.** The original project is [prateekmedia/claude-agent-sdk-pi](https://github.com/prateekmedia/claude-agent-sdk-pi), by Prateek Sunal. This fork is maintained at [brunoorsolon/claude-agent-sdk-pi-puglab](https://github.com/brunoorsolon/claude-agent-sdk-pi-puglab) and uses the separate npm name `@puglab/claude-agent-sdk-pi`. It is not endorsed by the original maintainer or Anthropic. [Fork changes, validation, and release instructions](FORK.md).
+# Pi Claude Bridge
 
-# @puglab/claude-agent-sdk-pi
+Use **Claude Agent SDK** as Pi's model backend while **Pi executes the tools** and renders tool results in the TUI. Install as `@puglab/pi-claude-bridge`.
 
-This extension registers a custom provider that routes LLM calls through the **Claude Agent SDK** while **pi executes tools** and renders tool results in the TUI.
+## Continuation of claude-agent-sdk-pi
+
+An independent continuation of [prateekmedia/claude-agent-sdk-pi](https://github.com/prateekmedia/claude-agent-sdk-pi), originally created by Prateek Sunal. Maintained by Bruno Orsolon at [brunoorsolon/pi-claude-bridge](https://github.com/brunoorsolon/pi-claude-bridge), with the original Git history and MIT notice preserved. Not affiliated with or endorsed by the original maintainer or Anthropic. [Project history, validation, and release instructions](FORK.md).
 
 ## Highlights
 
@@ -22,7 +23,7 @@ This extension registers a custom provider that routes LLM calls through the **C
 1) Install the extension globally (npm is the preferred source now):
 
 ```
-pi install npm:@puglab/claude-agent-sdk-pi@1.0.24
+pi install npm:@puglab/pi-claude-bridge@1.0.25
 ```
 
 Keep the exact version in consumer configuration and preserve the consumer lockfile where applicable.
@@ -30,7 +31,7 @@ Keep the exact version in consumer configuration and preserve the consumer lockf
 **Alternative (git):**
 
 ```
-pi install git:github.com/brunoorsolon/claude-agent-sdk-pi-puglab@v1.0.24
+pi install git:github.com/brunoorsolon/pi-claude-bridge@v1.0.25
 ```
 
 See **pi-coding-agent** install docs for other install sources and paths.
@@ -53,6 +54,17 @@ See **pi-coding-agent** install docs for other install sources and paths.
 ```
 /reload
 ```
+
+### Migrating from the previous package
+
+Once `@puglab/pi-claude-bridge@1.0.25` is published, replace the old package rather than loading both:
+
+```bash
+pi remove npm:@puglab/claude-agent-sdk-pi
+pi install npm:@puglab/pi-claude-bridge@1.0.25
+```
+
+If your Pi configuration owns installation, replace the old npm or Git source there instead and preserve its lockfile where applicable. Then reload Pi. The provider ID `claude-agent-sdk` and the settings keys `claudeAgentSdkProvider` / `claude-agent-sdk-provider` are unchanged, so existing model selections and settings still apply. Do not load the original upstream package alongside this one either; it registers the same provider ID.
 
 ## Provider ID
 

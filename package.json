@@ -1,15 +1,15 @@
 {
-  "name": "@puglab/claude-agent-sdk-pi",
-  "version": "1.0.24",
-  "description": "Unofficial maintained fork of claude-agent-sdk-pi; Claude Agent SDK requests with Pi tool execution",
+  "name": "@puglab/pi-claude-bridge",
+  "version": "1.0.25",
+  "description": "Claude Agent SDK as Pi's model backend, with Pi executing the tools",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/brunoorsolon/claude-agent-sdk-pi-puglab.git"
+    "url": "git+https://github.com/brunoorsolon/pi-claude-bridge.git"
   },
-  "homepage": "https://github.com/brunoorsolon/claude-agent-sdk-pi-puglab#readme",
+  "homepage": "https://github.com/brunoorsolon/pi-claude-bridge#readme",
   "bugs": {
-    "url": "https://github.com/brunoorsolon/claude-agent-sdk-pi-puglab/issues"
+    "url": "https://github.com/brunoorsolon/pi-claude-bridge/issues"
   },
   "publishConfig": {
     "access": "public",
