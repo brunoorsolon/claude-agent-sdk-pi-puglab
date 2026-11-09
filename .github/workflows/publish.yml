@@ -1,4 +1,4 @@
-name: Publish maintained fork to npm
+name: Publish Pi Claude Bridge to npm
 
 on:
   release:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   publish:
-    if: startsWith(github.event.release.tag_name, 'v') && github.repository == 'brunoorsolon/claude-agent-sdk-pi-puglab'
+    if: startsWith(github.event.release.tag_name, 'v') && github.repository == 'brunoorsolon/pi-claude-bridge'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '24.22.1'
           registry-url: https://registry.npmjs.org/
-      - name: Require a merged fork commit and matching package identity
+      - name: Require a merged commit and matching package identity
         run: |
           git fetch --no-tags origin master
           git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD
@@ -30,7 +30,7 @@ jobs:
           import assert from 'node:assert/strict';
           import { readFileSync } from 'node:fs';
           const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-          assert.equal(pkg.name, '@puglab/claude-agent-sdk-pi');
+          assert.equal(pkg.name, '@puglab/pi-claude-bridge');
           assert.equal(process.env.RELEASE_TAG, `v${pkg.version}`);
           NODE
         env:

@@ -1,4 +1,4 @@
-name: Test maintained fork
+name: Test Pi Claude Bridge
 
 on:
   pull_request:
